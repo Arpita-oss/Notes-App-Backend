@@ -6,18 +6,23 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 
 const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+const _dirname = path.dirname(__filename)
 
 const router = express.Router()
+import fs from 'fs'
 
-// Configure multer for image upload
+// Update storage configuration in your note routes
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'uploads/') // The folder where images will be stored
+      const uploadsDir = path.join(__dirname, '..', 'uploads')
+      // Ensure uploads directory exists
+      if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir, { recursive: true })
+      }
+      cb(null, uploadsDir)
   },
   filename: function (req, file, cb) {
-    // Create unique filename with timestamp
-    cb(null, Date.now() + '-' + file.originalname)
+      cb(null, Date.now() + '-' + file.originalname)
   }
 })
 
@@ -53,7 +58,7 @@ router.post('/add', middleware, upload.single('image'), async (req, res) => {
     const newNote = new Note({
       title,
       description,
-      image: req.file ? `/uploads/${req.file.filename}` : '',
+      image: req.file ? `/uploads/${req.file.filename}`: '',
       userId: req.user.id,
       isAudioNote: isAudioNote || false,
       audioTranscription: audioTranscription || ''
