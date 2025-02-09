@@ -20,12 +20,15 @@ if (!process.env.JWT_SECRET) {
 const app = express()
 import connectDB from './db/db.js'
 
+const port = 5000;
+
 app.use(cors())
 app.use(express.json())
 app.use('/api/auth', authRouter)
 app.use('/api/note', noteRouter)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
-app.listen(5000, ()=>{
+app.listen(port, ()=>{
     connectDB()
-    console.log("Server is running")
+    console.log(`Server is running on port ${port}`)
 })

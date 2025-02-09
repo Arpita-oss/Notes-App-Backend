@@ -1,42 +1,77 @@
 import express from 'express'
 import Note from '../models/Note.js';
 import middleware from '../middleware/middleware.js';
+import multer from 'multer'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 const router = express.Router()
 
+// Configure multer for image upload
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/') // The folder where images will be stored
+  },
+  filename: function (req, file, cb) {
+    // Create unique filename with timestamp
+    cb(null, Date.now() + '-' + file.originalname)
+  }
+})
 
-router.post('/add', middleware, async (req, res) => {
+// File filter to accept only images
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png']
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true)
+  } else {
+    cb(new Error('Invalid file type. Only JPEG, JPG and PNG allowed.'), false)
+  }
+}
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: fileFilter
+})
+
+
+
+router.post('/add', middleware, upload.single('image'), async (req, res) => {
   try {
     const {
       title,
       description,
-      image,
       isAudioNote,
       audioTranscription
-    } = req.body;
+    } = req.body
 
     const newNote = new Note({
       title,
       description,
-      image,
+      image: req.file ? `/uploads/${req.file.filename}` : '',
       userId: req.user.id,
       isAudioNote: isAudioNote || false,
       audioTranscription: audioTranscription || ''
-    });
+    })
 
-    await newNote.save();
+    await newNote.save()
     res.status(201).json({
       message: 'Created Note successfully',
       note: newNote
-    });
+    })
   } catch (error) {
-    console.error("Error in creating note:", error);
+    console.error("Error in creating note:", error)
     res.status(500).json({
       message: 'Error in creating a Note',
       error: error.message
-    });
+    })
   }
-});
+})
 
 router.get('/', middleware, async (req, res) => {
   try {
@@ -82,13 +117,14 @@ router.delete('/:id', middleware, async (req, res) => {
 });
 
 // Update note
-router.put('/:id', middleware, async (req, res) => {
+router.put('/:id', middleware, upload.single('image'), async (req, res) => {
   try {
-    const { title, description, image } = req.body;
-
+    const { title, description } = req.body;
+    
+    // Find the note and check ownership
     const note = await Note.findOne({
       _id: req.params.id,
-      userId: req.user.id  // Ensure user can only update their own notes
+      userId: req.user.id
     });
 
     if (!note) {
@@ -98,10 +134,34 @@ router.put('/:id', middleware, async (req, res) => {
       });
     }
 
+    // Prepare update data
+    const updateData = {};
+    
+    if (title) updateData.title = title;
+    if (description) updateData.description = description;
+
+    // Handle image update
+    if (req.file) {
+      try {
+        // Delete old image if it exists
+        if (note.image) {
+          const oldImagePath = path.join(__dirname, '..', note.image);
+          if (fs.existsSync(oldImagePath)) {
+            fs.unlinkSync(oldImagePath);
+          }
+        }
+        updateData.image = `/uploads/${req.file.filename}`;
+      } catch (fsError) {
+        console.error('File system error:', fsError);
+        // Continue with update even if old file deletion fails
+      }
+    }
+
+    // Update the note
     const updatedNote = await Note.findByIdAndUpdate(
       req.params.id,
-      { title, description, image },
-      { new: true }  // Return the updated document
+      updateData,
+      { new: true, runValidators: true }
     );
 
     res.status(200).json({
@@ -109,7 +169,20 @@ router.put('/:id', middleware, async (req, res) => {
       message: 'Note updated successfully',
       note: updatedNote
     });
+
   } catch (error) {
+    // Clean up uploaded file if there's an error
+    if (req.file) {
+      try {
+        const filePath = path.join(__dirname, '..', 'uploads', req.file.filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      } catch (fsError) {
+        console.error('Error cleaning up file:', fsError);
+      }
+    }
+
     res.status(500).json({
       success: false,
       message: 'Error in updating note',
@@ -117,6 +190,7 @@ router.put('/:id', middleware, async (req, res) => {
     });
   }
 });
+
 
 const toggleFavorite = async (req, res) => {
   try {
