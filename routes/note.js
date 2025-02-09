@@ -252,5 +252,36 @@ router.get('/', middleware, async (req, res) => {
     });
   }
 });
+router.put('/toggle-favorite/:id', middleware, async (req, res) => {
+  try {
+    const note = await Note.findOne({
+      _id: req.params.id,
+      userId: req.user.id
+    });
+
+    if (!note) {
+      return res.status(404).json({
+        success: false,
+        message: 'Note not found or unauthorized'
+      });
+    }
+
+    // Toggle the isFavorite field
+    note.isFavorite = !note.isFavorite;
+    await note.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Favorite status updated successfully',
+      note: note
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error updating favorite status',
+      error: error.message
+    });
+  }
+});
 
 export default router;
