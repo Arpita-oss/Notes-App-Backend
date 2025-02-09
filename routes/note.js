@@ -38,6 +38,15 @@ const upload = multer({
 // Modified add note route
 router.post('/add', middleware, upload.single('image'), async (req, res) => {
   try {
+    // Log incoming request details
+    console.log('Request body:', req.body);
+    console.log('File details:', req.file);
+    console.log('Cloudinary config:', {
+      hasCloudName: !!process.env.CLOUDINARY_CLOUD_NAME,
+      hasApiKey: !!process.env.CLOUDINARY_API_KEY,
+      hasSecret: !!process.env.CLOUDINARY_API_SECRET
+    });
+
     const {
       title,
       description,
@@ -48,7 +57,7 @@ router.post('/add', middleware, upload.single('image'), async (req, res) => {
     const newNote = new Note({
       title,
       description,
-      image: req.file ? req.file.path : '', // Cloudinary returns the URL in req.file.path
+      image: req.file ? req.file.path : '',
       userId: req.user.id,
       isAudioNote: isAudioNote || false,
       audioTranscription: audioTranscription || ''
@@ -60,16 +69,21 @@ router.post('/add', middleware, upload.single('image'), async (req, res) => {
       note: newNote
     });
   } catch (error) {
-    // If there's an error and an image was uploaded, delete it from Cloudinary
-    if (req.file && req.file.path) {
-      const publicId = req.file.filename;
-      await cloudinary.uploader.destroy(publicId);
-    }
+    // Enhanced error logging
+    console.error('Full error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
     
-    console.error("Error in creating note:", error);
+    if (error.code) {
+      console.error('Error code:', error.code);
+    }
+
     res.status(500).json({
       message: 'Error in creating a Note',
-      error: error.message
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
@@ -186,6 +200,36 @@ router.get('/test-cloudinary', async (req, res) => {
       message: error.message,
       config: {
         cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+        hasApiKey: !!process.env.CLOUDINARY_API_KEY,
+        hasSecret: !!process.env.CLOUDINARY_API_SECRET
+      }
+    });
+  }
+});
+router.get('/diagnose', async (req, res) => {
+  try {
+    // Test Cloudinary connection
+    const cloudinaryTest = await cloudinary.api.ping();
+    
+    res.json({
+      status: 'success',
+      environment: process.env.NODE_ENV,
+      cloudinary: {
+        connected: true,
+        hasCloudName: !!process.env.CLOUDINARY_CLOUD_NAME,
+        hasApiKey: !!process.env.CLOUDINARY_API_KEY,
+        hasSecret: !!process.env.CLOUDINARY_API_SECRET
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      error: error.message,
+      environment: process.env.NODE_ENV,
+      cloudinary: {
+        connected: false,
+        hasCloudName: !!process.env.CLOUDINARY_CLOUD_NAME,
         hasApiKey: !!process.env.CLOUDINARY_API_KEY,
         hasSecret: !!process.env.CLOUDINARY_API_SECRET
       }

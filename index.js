@@ -28,7 +28,21 @@ app.use('/api/auth', authRouter)
 app.use('/api/note', noteRouter)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
-app.listen(port, ()=>{
+app.listen(port, () => {
+    console.log(`Server starting up...`);
+    console.log('Environment:', process.env.NODE_ENV);
+    console.log('Cloudinary config present:', {
+      hasCloudName: !!process.env.CLOUDINARY_CLOUD_NAME,
+      hasApiKey: !!process.env.CLOUDINARY_API_KEY,
+      hasSecret: !!process.env.CLOUDINARY_API_SECRET
+    });
+    
     connectDB()
-    console.log(`Server is running on port ${port}`)
-})
+      .then(() => {
+        console.log('Database connected successfully');
+        console.log(`Server is running on port ${port}`);
+      })
+      .catch(err => {
+        console.error('Database connection failed:', err);
+      });
+  });
