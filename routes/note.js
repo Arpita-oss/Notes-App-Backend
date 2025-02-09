@@ -236,5 +236,21 @@ router.get('/diagnose', async (req, res) => {
     });
   }
 });
+// Add this route to your note.js
+router.get('/', middleware, async (req, res) => {
+  try {
+    const notes = await Note.find({ userId: req.user.id });
+    res.status(200).json({
+      success: true,
+      Notes: notes
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching notes',
+      error: error.message
+    });
+  }
+});
 
 export default router;
