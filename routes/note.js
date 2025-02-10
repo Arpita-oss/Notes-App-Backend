@@ -35,6 +35,22 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 });
 
+
+router.get('/', middleware, async (req, res) => {
+  try {
+    const notes = await Note.find({ userId: req.user.id });
+    res.status(200).json({
+      success: true,
+      Notes: notes
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching notes',
+      error: error.message
+    });
+  }
+});
 // Modified add note route
 router.post('/add', middleware, upload.single('image'), async (req, res) => {
   try {
@@ -236,22 +252,8 @@ router.get('/diagnose', async (req, res) => {
     });
   }
 });
-// Add this route to your note.js
-router.get('/', middleware, async (req, res) => {
-  try {
-    const notes = await Note.find({ userId: req.user.id });
-    res.status(200).json({
-      success: true,
-      Notes: notes
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching notes',
-      error: error.message
-    });
-  }
-});
+
+
 router.put('/toggle-favorite/:id', middleware, async (req, res) => {
   try {
     const note = await Note.findOne({
@@ -281,6 +283,17 @@ router.put('/toggle-favorite/:id', middleware, async (req, res) => {
       message: 'Error updating favorite status',
       error: error.message
     });
+  }
+});
+router.get('/favourites', middleware, async (req, res) => {
+  try {
+    const favouriteNotes = await Note.find({
+      userId: req.user.id,
+      isFavorite: true
+    });
+    res.json(favouriteNotes);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching favourite notes' });
   }
 });
 
