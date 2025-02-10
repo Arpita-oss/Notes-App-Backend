@@ -1,3 +1,4 @@
+
 import express from 'express';
 import User from '../models/User.js';  // ✅ Import the User model
 import bcrypt from 'bcrypt';
