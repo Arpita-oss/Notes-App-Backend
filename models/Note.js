@@ -16,7 +16,8 @@ const NoteSchema = new mongoose.Schema({
     required: true
   },
   image: {
-    type: String
+    type: String,
+    default: ''
   },
   isAudioNote: {
     type: Boolean,
